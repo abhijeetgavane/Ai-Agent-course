@@ -2,11 +2,40 @@ import os
 
 import chainlit as cl
 import dotenv
-from agents import InputGuardrailTripwireTriggered, Runner, SQLiteSession
+from agents import Agent, InputGuardrailTripwireTriggered, Runner, SQLiteSession
+from evs_agent import evs_agent
+from math_tutor_agent import math_tutor_agent
 from nutrition_agent import exa_search_mcp, nutrition_agent
 from openai.types.responses import ResponseTextDeltaEvent
 
 dotenv.load_dotenv()
+
+learning_assistant = Agent(
+    name="Learning Assistant",
+    instructions="""
+    Help the learner with math, Environmental Studies (EVS), and nutrition.
+    Route each request to the matching specialist tool:
+    - Use math_tutor for math questions.
+    - Use evs_tutor for Environmental Studies questions.
+    - Use nutrition_advisor for food, nutrition, or meal-planning questions.
+    Do not answer specialist questions yourself when the matching tool is
+    available. Present the specialist's response clearly to the learner.
+    """,
+    tools=[
+        math_tutor_agent.as_tool(
+            tool_name="math_tutor",
+            tool_description="Teach and help solve math problems step by step.",
+        ),
+        evs_agent.as_tool(
+            tool_name="evs_tutor",
+            tool_description="Teach Environmental Studies topics.",
+        ),
+        nutrition_agent.as_tool(
+            tool_name="nutrition_advisor",
+            tool_description="Answer food, nutrition, and meal-planning questions.",
+        ),
+    ],
+)
 
 
 @cl.on_chat_start
@@ -22,7 +51,7 @@ async def on_message(message: cl.Message):
     session = cl.user_session.get("agent_session")
 
     result = Runner.run_streamed(
-        nutrition_agent,
+        learning_assistant,
         message.content,
         session=session,
     )
